@@ -9,23 +9,27 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AdamW
 
-# 1. Config
-DATA_PATH    = "data/labels.csv"
-MODEL_DIR    = "models/stancetagger"
-OUTPUT_PATH  = os.path.join(MODEL_DIR, "finetuned.pt")
-PRETRAINED   = OUTPUT_PATH if os.path.exists(OUTPUT_PATH) else MODEL_DIR
-BATCH_SIZE   = 16
-LR           = 2e-5
-EPOCHS       = 3
-DEVICE       = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-LABEL2ID     = {"Claim": 0, "Premise": 1}
+# ── Config ──────────────────────────────────────────────────────────────────────
+DATA_PATH   = "data/labels.csv"
+MODEL_DIR   = "models/stancetagger"
+OUTPUT_PATH = os.path.join(MODEL_DIR, "finetuned.pt")
+PRETRAINED  = OUTPUT_PATH if os.path.exists(OUTPUT_PATH) else MODEL_DIR
 
-# 2. Dataset
+BATCH_SIZE = 16
+LR         = 2e-5
+EPOCHS     = 3
+DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# map labels case‐insensitively
+LABEL2ID = {"claim": 0, "premise": 1}
+
+# ── Dataset ─────────────────────────────────────────────────────────────────────
 class EdgeCaseDataset(Dataset):
     def __init__(self, csv_path, tokenizer):
         df = pd.read_csv(csv_path)
+        # normalize labels to lowercase before mapping
+        self.labels = [LABEL2ID[l.strip().lower()] for l in df["label"]]
         self.texts  = df["sentence"].tolist()
-        self.labels = [LABEL2ID[l] for l in df["label"]]
         self.tokenizer = tokenizer
 
     def __len__(self):
@@ -45,25 +49,29 @@ class EdgeCaseDataset(Dataset):
             "labels": torch.tensor(self.labels[idx], dtype=torch.long)
         }
 
-# 3. Prepare
+# ── Prepare Model & Data ────────────────────────────────────────────────────────
+print(f"Loading tokenizer and dataset ({DATA_PATH})...")
 tokenizer = AutoTokenizer.from_pretrained(PRETRAINED)
 dataset   = EdgeCaseDataset(DATA_PATH, tokenizer)
 loader    = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+print(f"Loaded {len(dataset)} examples. Starting training for {EPOCHS} epochs on {DEVICE}.")
 
 model = AutoModelForSequenceClassification.from_pretrained(
-    PRETRAINED,
-    num_labels=2
+    PRETRAINED, num_labels=2
 )
 model.to(DEVICE)
-model.train()
-
 optimizer = AdamW(model.parameters(), lr=LR)
 
-# 4. Training loop
+# ── Training Loop ───────────────────────────────────────────────────────────────
 for epoch in range(1, EPOCHS+1):
+    print(f"\n=== Epoch {epoch}/{EPOCHS} ===")
     total_loss = 0.0
-    for batch in loader:
+
+    for batch_idx, batch in enumerate(loader, start=1):
+        if batch_idx == 1 or batch_idx % 10 == 0:
+            print(f"  Batch {batch_idx}/{len(loader)}")
         optimizer.zero_grad()
+
         input_ids      = batch["input_ids"].to(DEVICE)
         attention_mask = batch["attention_mask"].to(DEVICE)
         labels         = batch["labels"].to(DEVICE)
@@ -97,7 +105,7 @@ for epoch in range(1, EPOCHS+1):
     print(f"→ Edge-case accuracy: {acc:.2%}")
     model.train()
 
-# 5. Save
+# ── Save ────────────────────────────────────────────────────────────────────────
 os.makedirs(MODEL_DIR, exist_ok=True)
 model.save_pretrained(MODEL_DIR)
 tokenizer.save_pretrained(MODEL_DIR)

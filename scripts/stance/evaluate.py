@@ -10,18 +10,22 @@ from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-# Config
+# ── Config ──────────────────────────────────────────────────────────────────────
 TEST_CSV   = "data/test.csv"
 MODEL_DIR  = "models/stancetagger"
 BATCH_SIZE = 16
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-LABEL2ID   = {"Claim": 0, "Premise": 1}
-ID2LABEL   = {v: k for k, v in LABEL2ID.items()}
+
+# case-insensitive label mapping
+LABEL2ID = {"claim": 0, "premise": 1}
+# for converting back to display labels
+ID2LABEL = {0: "Claim", 1: "Premise"}
 
 def load_test_dataset(csv_path, tokenizer, max_len=128):
     df = pd.read_csv(csv_path)
     texts  = df["sentence"].tolist()
-    labels = [LABEL2ID[l] for l in df["label"]]
+    # normalize labels to lowercase before mapping
+    labels = [LABEL2ID[l.strip().lower()] for l in df["label"]]
 
     enc = tokenizer(
         texts,
@@ -51,19 +55,22 @@ def main():
     all_preds, all_labels = [], []
     with torch.no_grad():
         for input_ids, attn_mask, labels in test_loader:
-            input_ids  = input_ids.to(DEVICE)
-            attn_mask  = attn_mask.to(DEVICE)
-            outputs    = model(input_ids=input_ids, attention_mask=attn_mask)
-            logits     = outputs.logits
-            preds      = torch.argmax(logits, dim=1).cpu().tolist()
+            input_ids = input_ids.to(DEVICE)
+            attn_mask = attn_mask.to(DEVICE)
+            outputs   = model(input_ids=input_ids, attention_mask=attn_mask)
+            logits    = outputs.logits
+            preds     = torch.argmax(logits, dim=1).cpu().tolist()
 
             all_preds.extend(preds)
             all_labels.extend(labels.tolist())
 
-    # Save misclassified examples
+    # Save misclassified examples (case-insensitive comparison)
     orig_df = pd.read_csv(TEST_CSV)
+    orig_df['true_norm'] = orig_df['label'].str.strip().str.lower()
     orig_df['pred_label'] = [ID2LABEL[p] for p in all_preds]
-    mis_df = orig_df[orig_df['pred_label'] != orig_df['label']]
+    orig_df['pred_norm']  = orig_df['pred_label'].str.strip().str.lower()
+
+    mis_df = orig_df[orig_df['true_norm'] != orig_df['pred_norm']]
     df_out = mis_df[['sentence', 'label', 'pred_label']].rename(columns={'label': 'true_label'})
     os.makedirs(os.path.dirname('data/wrong.csv'), exist_ok=True)
     df_out.to_csv('data/wrong.csv', index=False)
@@ -78,8 +85,9 @@ def main():
 
     # Display
     print(f"Test Accuracy:  {accuracy:.4f}\n")
-    for idx, label in ID2LABEL.items():
-        print(f"{label:7s}  Precision: {prec[idx]:.4f}  Recall: {recall[idx]:.4f}  F1: {f1[idx]:.4f}")
+    for idx in [0,1]:
+        lab = ID2LABEL[idx]
+        print(f"{lab:7s}  Precision: {prec[idx]:.4f}  Recall: {recall[idx]:.4f}  F1: {f1[idx]:.4f}")
     print(f"\nMacro F1:       {f1_macro:.4f}")
 
 if __name__ == "__main__":
