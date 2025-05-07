@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 import os
 import sys
-import argparse
+# ensure project root on PYTHONPATH
+REPO_ROOT = os.path.abspath(os.path.join(__file__, "..", "..", ".."))
+sys.path.insert(0, REPO_ROOT)
+
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -13,103 +16,96 @@ from transformers import (
 )
 from sklearn.metrics import precision_recall_fscore_support
 
-# ── Dataset ─────────────────────────────────────────────────────────────────────
+# ── Constants ──────────────────────────────────────────────────────────────────
+DATA_CSV    = "data/relationlabels.csv"
+MODEL_DIR   = "models/relationtagger"
+PRETRAINED  = "bert-base-uncased"
+BATCH_SIZE  = 16
+LR          = 3e-5
+EPOCHS      = 5
+WARMUP_FRAC = 0.1
+MAX_LEN     = 128
+DEV_SPLIT   = 0.1
+DEVICE      = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+LABEL2ID = {"attack":0, "support":1, "none":2}
+
+# ── Dataset ────────────────────────────────────────────────────────────────────
 class RelationDataset(Dataset):
-    def __init__(self, df, tokenizer, max_len=128):
-        self.texts_a = df["sentence1"].tolist()
-        self.texts_b = df["sentence2"].tolist()
-        # normalize labels
-        self.labels  = [l.strip().lower() for l in df["label"]]
+    def __init__(self, df, tokenizer):
+        self.a_texts = df["sentence1"].tolist()
+        self.b_texts = df["sentence2"].tolist()
+        self.labels  = [LABEL2ID[l.strip().lower()] for l in df["label"]]
         self.tokenizer = tokenizer
-        self.max_len = max_len
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, idx):
-        a, b = self.texts_a[idx], self.texts_b[idx]
+        a, b = self.a_texts[idx], self.b_texts[idx]
         enc = self.tokenizer(
             a, b,
             padding="max_length",
             truncation=True,
-            max_length=self.max_len,
+            max_length=MAX_LEN,
             return_tensors="pt"
         )
-        label_id = {"attack":0, "support":1, "none":2}[self.labels[idx]]
         return {
             "input_ids":      enc["input_ids"].squeeze(0),
             "attention_mask": enc["attention_mask"].squeeze(0),
-            "labels":         torch.tensor(label_id, dtype=torch.long)
+            "labels":         torch.tensor(self.labels[idx], dtype=torch.long)
         }
 
-# ── Compute Macro-F1 for Validation ─────────────────────────────────────────────
 def compute_macro_f1(model, loader, device):
     model.eval()
-    preds, trues = [], []
+    preds, true = [], []
     with torch.no_grad():
         for batch in loader:
             ids   = batch["input_ids"].to(device)
             mask  = batch["attention_mask"].to(device)
             out   = model(ids, attention_mask=mask).logits
             preds.extend(torch.argmax(out, dim=1).cpu().tolist())
-            trues.extend(batch["labels"].tolist())
-    _, _, f1s, _ = precision_recall_fscore_support(trues, preds, labels=[0,1,2], average=None)
+            true.extend(batch["labels"].tolist())
+    _, _, f1s, _ = precision_recall_fscore_support(true, preds, labels=[0,1,2], average=None)
     return f1s.mean()
 
-# ── Main Training Script ────────────────────────────────────────────────────────
+# ── Main ────────────────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser("Train relation tagger")
-    parser.add_argument("--csv",    default="data/relationlabels.csv",
-                        help="Path to relationlabels.csv")
-    parser.add_argument("--batch",  type=int,   default=16)
-    parser.add_argument("--epochs", type=int,   default=5)
-    parser.add_argument("--lr",     type=float, default=3e-5)
-    parser.add_argument("--warmup", type=float, default=0.1,
-                        help="Fraction of total steps to warm up")
-    parser.add_argument("--maxlen", type=int,   default=128)
-    parser.add_argument("--seed",   type=int,   default=42)
-    parser.add_argument("--output", default="models/relation-tagger",
-                        help="Where to save the trained model")
-    args = parser.parse_args()
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    print(f"Loading data from {DATA_CSV} and tokenizer {PRETRAINED}")
+    df = pd.read_csv(DATA_CSV)
+    tokenizer = AutoTokenizer.from_pretrained(PRETRAINED)
+    full_ds = RelationDataset(df, tokenizer)
 
-    torch.manual_seed(args.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    os.makedirs(args.output, exist_ok=True)
-
-    # Load & split dataset
-    df = pd.read_csv(args.csv)
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    full_ds = RelationDataset(df, tokenizer, max_len=args.maxlen)
-    n_dev   = int(0.1 * len(full_ds))
+    # split train/dev
+    n_dev = int(DEV_SPLIT * len(full_ds))
     train_ds, dev_ds = random_split(full_ds, [len(full_ds)-n_dev, n_dev],
-                                    generator=torch.Generator().manual_seed(args.seed))
-    train_loader = DataLoader(train_ds, batch_size=args.batch, shuffle=True)
-    dev_loader   = DataLoader(dev_ds,   batch_size=args.batch)
+                                    generator=torch.Generator().manual_seed(42))
+    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
+    dev_loader   = DataLoader(dev_ds,   batch_size=BATCH_SIZE)
 
-    # Initialize model & optimizer & scheduler
     model = AutoModelForSequenceClassification.from_pretrained(
-        "distilbert-base-uncased",
-        num_labels=3
-    ).to(device)
-    optimizer = AdamW(model.parameters(), lr=args.lr)
+        PRETRAINED, num_labels=3
+    ).to(DEVICE)
+    optimizer = AdamW(model.parameters(), lr=LR)
 
-    total_steps = len(train_loader) * args.epochs
-    warmup_steps = int(args.warmup * total_steps)
+    total_steps = len(train_loader) * EPOCHS
+    warmup_steps = int(WARMUP_FRAC * total_steps)
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps
     )
 
     best_f1 = 0.0
-    for epoch in range(1, args.epochs+1):
-        print(f"\n=== Epoch {epoch}/{args.epochs} ===")
+    print(f"Starting training for {EPOCHS} epochs on {DEVICE}")
+    for epoch in range(1, EPOCHS+1):
         model.train()
         running_loss = 0.0
-
-        for idx, batch in enumerate(train_loader, start=1):
+        print(f"\nEpoch {epoch}/{EPOCHS}")
+        for i, batch in enumerate(train_loader, start=1):
             optimizer.zero_grad()
-            ids   = batch["input_ids"].to(device)
-            mask  = batch["attention_mask"].to(device)
-            labels= batch["labels"].to(device)
+            ids    = batch["input_ids"].to(DEVICE)
+            mask   = batch["attention_mask"].to(DEVICE)
+            labels = batch["labels"].to(DEVICE)
 
             out   = model(ids, attention_mask=mask, labels=labels)
             loss  = out.loss
@@ -118,17 +114,16 @@ def main():
             scheduler.step()
 
             running_loss += loss.item()
-            if idx % 20 == 0:
-                print(f"  Batch {idx}/{len(train_loader)}  loss={running_loss/idx:.4f}")
+            if i % 20 == 0:
+                print(f"  Batch {i}/{len(train_loader)}  loss={running_loss/i:.4f}")
 
-        # Validate
-        val_f1 = compute_macro_f1(model, dev_loader, device)
-        print(f"Validation Macro-F1: {val_f1:.4f}")
+        val_f1 = compute_macro_f1(model, dev_loader, DEVICE)
+        print(f"Validation macro-F1: {val_f1:.4f}")
         if val_f1 > best_f1:
             best_f1 = val_f1
-            model.save_pretrained(args.output)
-            tokenizer.save_pretrained(args.output)
-            print(f"→ Saved best model (F1={best_f1:.4f}) to {args.output}")
+            model.save_pretrained(MODEL_DIR)
+            tokenizer.save_pretrained(MODEL_DIR)
+            print(f"→ Saved best model (F1={best_f1:.4f}) to {MODEL_DIR}")
 
     print("\nTraining complete.")
 

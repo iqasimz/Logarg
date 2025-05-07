@@ -1,0 +1,7 @@
+{
+  // Tells VS Code which interpreter to use
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+
+  // Automatically activate the selected interpreter’s venv in new terminals
+  "python.terminal.activateEnvironment": true
+}
