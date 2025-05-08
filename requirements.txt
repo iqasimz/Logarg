@@ -38,6 +38,7 @@ streamlit
 transformers
 networkx
 pyvis
+scikit-learn
 --find-links https://download.pytorch.org/whl/cpu/torch_stable.html
 # CPU-only PyTorch for Linux (use a wheel that exists for Python 3.12)
 torch>=2.7.0+cpu; platform_system=="Linux"
