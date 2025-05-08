@@ -31,11 +31,19 @@ def load_databank(path="databank.jsonl"):
 
 db = load_databank()
 
+@st.cache_data
+def load_tfidf(corpus):
+    vectorizer = TfidfVectorizer().fit(corpus)
+    matrix = vectorizer.transform(corpus)
+    return vectorizer, matrix
+
+vectorizer, arg_tfidf = load_tfidf(db["argument"].tolist())
+
 # ── Session State ───────────────────────────────────────────────────────────────
 if "history" not in st.session_state:
     st.session_state.history = []
 if "used" not in st.session_state:
-    st.session_state.used = set()
+    st.session_state.used = []
 if "clear_input" not in st.session_state:
     st.session_state.clear_input = False
 
@@ -55,7 +63,7 @@ def render_chat():
             )
         else:
             with st.spinner("🤖 Assistant is typing..."):
-                time.sleep(0.5)
+                pass
             if msg["mode"] in ["Opponent", "Proponent"]:
                 content = f"**{msg['relation'].title()} Argument:** {msg['argument']}"
             else:
@@ -94,16 +102,17 @@ if st.button("Respond", key="respond_button"):
         with torch.no_grad():
             probs = torch.softmax(rel_mod(**enc).logits, dim=1).cpu().tolist()
 
-        # 2) TF-IDF similarity only
-        vectorizer = TfidfVectorizer().fit(db["argument"].tolist() + [user_input])
-        arg_tfidf = vectorizer.transform(db["argument"].tolist())
+        # 2) TF-IDF similarity only (cached)
         user_tfidf = vectorizer.transform([user_input])
+        sims = cosine_similarity(arg_tfidf, user_tfidf).flatten()
+
+        used_set = set(st.session_state.used)
 
         recs = []
-        for idx, (row, prob) in enumerate(zip(db.to_dict("records"), probs)):
-            if idx in st.session_state.used:
+        for idx, row in db.iterrows():
+            if idx in used_set:
                 continue
-
+            prob = probs[idx]
             lid = int(np.argmax(prob))
             label = REL_LABELS[lid]
             if user_stance == "con":
@@ -111,9 +120,7 @@ if st.button("Respond", key="respond_button"):
                     label = "attack"
                 elif label == "attack":
                     label = "support"
-
-            sim = float(cosine_similarity(arg_tfidf[idx], user_tfidf)[0][0])
-
+            sim = float(sims[idx])
             recs.append({
                 "idx": idx,
                 "argument": row["argument"],
@@ -138,7 +145,7 @@ if st.button("Respond", key="respond_button"):
 
             if mode in ["Opponent", "Proponent"]:
                 best = df_sorted.iloc[0]
-                st.session_state.used.add(int(best["idx"]))
+                st.session_state.used.append(int(best["idx"]))
                 st.session_state.history.append({
                     "role": "assistant",
                     "mode": mode,
@@ -146,9 +153,9 @@ if st.button("Respond", key="respond_button"):
                     "argument": best["argument"]
                 })
             else:
-                topn = df_sorted.head(20).to_dict("records")
+                topn = df_sorted.head(5).to_dict("records")
                 for r in topn:
-                    st.session_state.used.add(int(r["idx"]))
+                    st.session_state.used.append(int(r["idx"]))
                 st.session_state.history.append({
                     "role": "assistant",
                     "mode": mode,
