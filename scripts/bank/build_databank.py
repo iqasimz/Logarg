@@ -24,10 +24,22 @@ def main():
     # 4. Normalize stance to lowercase
     df["stance"] = df["stance"].str.strip().str.lower()
     
-    # 5. Write out as JSON Lines
+    # 5. Read existing JSONL if exists
+    existing = []
+    if os.path.exists(OUTPUT_JSONL):
+        with open(OUTPUT_JSONL) as f_old:
+            existing = [json.loads(line) for line in f_old]
+    
+    # 6. Collect new records
+    new_records = df.to_dict(orient="records")
+    
+    # 7. Prepend new_records to existing
+    combined = new_records + existing
+    
+    # 8. Write combined records back to JSONL
     os.makedirs(os.path.dirname(OUTPUT_JSONL), exist_ok=True)
     with open(OUTPUT_JSONL, "w") as f:
-        for record in df.to_dict(orient="records"):
+        for record in combined:
             json.dump(record, f)
             f.write("\n")
     
