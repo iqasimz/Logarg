@@ -20,7 +20,7 @@ REL_LABELS = ["attack", "support", "none"]
 
 # ── Load Databank ───────────────────────────────────────────────────────────────
 @st.cache_data
-def load_databank(path="data/databank.jsonl"):
+def load_databank(path="databank.jsonl"):
     return pd.read_json(path, lines=True)
 
 db = load_databank()
