@@ -1,3 +1,47 @@
+{"argument_number": 1, "topic": "nuclear energy", "argument": "Nuclear energy is a reliable power source", "stance": "pro"}
+{"argument_number": 2, "topic": "nuclear energy", "argument": "Nuclear energy reduces greenhouse gas emissions", "stance": "pro"}
+{"argument_number": 3, "topic": "nuclear energy", "argument": "Nuclear energy provides high energy density", "stance": "pro"}
+{"argument_number": 4, "topic": "nuclear energy", "argument": "Nuclear energy supports baseload electricity supply", "stance": "pro"}
+{"argument_number": 5, "topic": "nuclear energy", "argument": "Nuclear energy helps stabilize the grid", "stance": "pro"}
+{"argument_number": 6, "topic": "nuclear energy", "argument": "Nuclear energy can operate continuously for months", "stance": "pro"}
+{"argument_number": 7, "topic": "nuclear energy", "argument": "Nuclear energy diversifies the energy mix", "stance": "pro"}
+{"argument_number": 8, "topic": "nuclear energy", "argument": "Nuclear energy drives high-skill job creation", "stance": "pro"}
+{"argument_number": 9, "topic": "nuclear energy", "argument": "Nuclear energy fuels medical isotope production", "stance": "pro"}
+{"argument_number": 10, "topic": "nuclear energy", "argument": "Nuclear energy enables clean industrial heat", "stance": "pro"}
+{"argument_number": 11, "topic": "nuclear energy", "argument": "Nuclear energy poses catastrophic accident risks", "stance": "con"}
+{"argument_number": 12, "topic": "nuclear energy", "argument": "Nuclear energy generates long-lived radioactive waste", "stance": "con"}
+{"argument_number": 13, "topic": "nuclear energy", "argument": "Nuclear energy requires massive upfront investment", "stance": "con"}
+{"argument_number": 14, "topic": "nuclear energy", "argument": "Nuclear energy plants take decades to build", "stance": "con"}
+{"argument_number": 15, "topic": "nuclear energy", "argument": "Nuclear energy relies on scarce water resources", "stance": "con"}
+{"argument_number": 16, "topic": "nuclear energy", "argument": "Nuclear energy can be targeted by terrorists", "stance": "con"}
+{"argument_number": 17, "topic": "nuclear energy", "argument": "Nuclear energy production risks proliferation", "stance": "con"}
+{"argument_number": 18, "topic": "nuclear energy", "argument": "Nuclear energy decommissioning is costly and complex", "stance": "con"}
+{"argument_number": 19, "topic": "nuclear energy", "argument": "Nuclear energy mining harms local ecosystems", "stance": "con"}
+{"argument_number": 20, "topic": "nuclear energy", "argument": "Nuclear energy public opposition slows projects", "stance": "con"}
+{"argument_number": 21, "topic": "nuclear energy", "argument": "Nuclear energy’s levelized cost becomes competitive when accounting for carbon pricing and long asset lifespans", "stance": "pro"}
+{"argument_number": 22, "topic": "nuclear energy", "argument": "Nuclear energy’s high capacity factor provides firm power that enhances grid reliability during extreme weather", "stance": "pro"}
+{"argument_number": 23, "topic": "nuclear energy", "argument": "Nuclear energy’s integration with intermittent renewables via hybrid energy systems can optimize overall system flexibility", "stance": "pro"}
+{"argument_number": 24, "topic": "nuclear energy", "argument": "Nuclear energy’s closed fuel cycle potential through advanced reprocessing and fast reactors can drastically reduce long-lived waste inventories", "stance": "pro"}
+{"argument_number": 25, "topic": "nuclear energy", "argument": "Nuclear energy supports deep decarbonization of industrial heat sectors where electrification is challenging", "stance": "pro"}
+{"argument_number": 26, "topic": "nuclear energy", "argument": "Nuclear energy’s advanced modular designs lower financial risk by enabling serial factory production and incremental capacity additions", "stance": "pro"}
+{"argument_number": 27, "topic": "nuclear energy", "argument": "Nuclear energy deployment can drive regional economic revitalization through high-wage jobs and supply-chain development", "stance": "pro"}
+{"argument_number": 28, "topic": "nuclear energy", "argument": "Nuclear energy’s robust regulatory frameworks and international oversight bodies provide an evolving safety culture benchmark", "stance": "pro"}
+{"argument_number": 29, "topic": "nuclear energy", "argument": "Nuclear energy can be harnessed for cogeneration applications such as desalination and district heating to deliver multi-vector benefits", "stance": "pro"}
+{"argument_number": 30, "topic": "nuclear energy", "argument": "Nuclear energy’s strategic uranium reserves and fuel bank mechanisms reduce vulnerability to global fuel market shocks", "stance": "pro"}
+{"argument_number": 31, "topic": "nuclear energy", "argument": "Nuclear energy R&D investment accelerates breakthroughs in materials science, robotics, and AI for autonomy and predictive maintenance", "stance": "pro"}
+{"argument_number": 32, "topic": "nuclear energy", "argument": "Nuclear energy’s potential for small marine reactors offers decarbonization pathways for shipping and remote island grids", "stance": "pro"}
+{"argument_number": 33, "topic": "nuclear energy", "argument": "Nuclear energy’s true cost underestimates decommissioning liabilities and long-term waste management burdens on future generations", "stance": "con"}
+{"argument_number": 34, "topic": "nuclear energy", "argument": "Nuclear energy’s large up-front capital requirements skew investment away from faster-deploying renewables and storage", "stance": "con"}
+{"argument_number": 35, "topic": "nuclear energy", "argument": "Nuclear energy’s supply chain remains reliant on environmentally damaging uranium mining and geopolitically concentrated refining capacities", "stance": "con"}
+{"argument_number": 36, "topic": "nuclear energy", "argument": "Nuclear energy’s SMR prototypes face unproven licensing, vendor insolvency risks, and uncertain economies of scale", "stance": "con"}
+{"argument_number": 37, "topic": "nuclear energy", "argument": "Nuclear energy’s accident risk, however low statistically, carries low-probability but high-consequence tail risks that challenge insurance markets", "stance": "con"}
+{"argument_number": 38, "topic": "nuclear energy", "argument": "Nuclear energy’s multidecade project timelines impede rapid climate action compared to modular renewables and battery technologies", "stance": "con"}
+{"argument_number": 39, "topic": "nuclear energy", "argument": "Nuclear energy’s public acceptance is hampered by historic distrust, NIMBY movements, and the ‘Not In My Backyard’ effect", "stance": "con"}
+{"argument_number": 40, "topic": "nuclear energy", "argument": "Nuclear energy’s regulatory fragmentation across jurisdictions slows cross-border technology transfer and scale-up", "stance": "con"}
+{"argument_number": 41, "topic": "nuclear energy", "argument": "Nuclear energy’s proliferation risks persist as civilian programs can provide cover for latent weapons capabilities without full safeguards", "stance": "con"}
+{"argument_number": 42, "topic": "nuclear energy", "argument": "Nuclear energy’s water-intensive cooling demands conflict with climate-driven droughts and competing agricultural needs", "stance": "con"}
+{"argument_number": 43, "topic": "nuclear energy", "argument": "Nuclear energy’s decommissioning waste streams remain on-site hazards requiring surveillance for centuries", "stance": "con"}
+{"argument_number": 44, "topic": "nuclear energy", "argument": "Nuclear energy’s intergenerational ethics issue of imposing radiotoxic waste stewardship on future societies raises moral concerns", "stance": "con"}
 {"argument_number": 1, "topic": "nuclear energy", "argument": "Provides a stable, low-carbon source of baseload electricity to complement intermittent renewables", "stance": "pro"}
 {"argument_number": 2, "topic": "nuclear energy", "argument": "Produces virtually zero greenhouse gas emissions during operation, helping to combat climate change", "stance": "pro"}
 {"argument_number": 3, "topic": "nuclear energy", "argument": "High energy density means a small land footprint compared to wind or solar farms", "stance": "pro"}
@@ -42,8 +86,8 @@
 {"argument_number": 42, "topic": "nuclear energy", "argument": "High-level waste transport poses security and accident risks across communities", "stance": "con"}
 {"argument_number": 43, "topic": "nuclear energy", "argument": "Decommissioning funding shortfalls can leave contaminated sites unmanaged", "stance": "con"}
 {"argument_number": 44, "topic": "nuclear energy", "argument": "Fast-breeder reactors have struggled economically and pose additional proliferation risks", "stance": "con"}
-{"argument_number": 45, "topic": "nuclear energy", "argument": "Renewable energy plus storage costs are falling faster, challenging nuclear\u2019s economic case", "stance": "con"}
-{"argument_number": 46, "topic": "nuclear energy", "argument": "Long development timelines (10\u201315 years) delay climate impact compared to renewables", "stance": "con"}
+{"argument_number": 45, "topic": "nuclear energy", "argument": "Renewable energy plus storage costs are falling faster, challenging nuclear’s economic case", "stance": "con"}
+{"argument_number": 46, "topic": "nuclear energy", "argument": "Long development timelines (10–15 years) delay climate impact compared to renewables", "stance": "con"}
 {"argument_number": 47, "topic": "nuclear energy", "argument": "Small modular reactors are unproven at scale and may face the same cost issues", "stance": "con"}
 {"argument_number": 48, "topic": "nuclear energy", "argument": "Legacy contamination around aging sites (e.g., Hanford) remains a national liability", "stance": "con"}
 {"argument_number": 49, "topic": "nuclear energy", "argument": "Operator errors and human factors cannot be entirely eliminated, risking safety", "stance": "con"}
@@ -65,7 +109,7 @@
 {"argument_number": 65, "topic": "nuclear energy", "argument": "Nuclear energy can support desalination plants, addressing water scarcity in arid regions", "stance": "pro"}
 {"argument_number": 66, "topic": "nuclear energy", "argument": "Long-term power purchase agreements (PPAs) provide financial stability for nuclear projects", "stance": "pro"}
 {"argument_number": 67, "topic": "nuclear energy", "argument": "Nuclear technology development spins off innovations in materials science and robotics", "stance": "pro"}
-{"argument_number": 68, "topic": "nuclear energy", "argument": "Existing fossil\u2010fuel plants can be converted to run on nuclear heat, extending their utility", "stance": "pro"}
+{"argument_number": 68, "topic": "nuclear energy", "argument": "Existing fossil‐fuel plants can be converted to run on nuclear heat, extending their utility", "stance": "pro"}
 {"argument_number": 69, "topic": "nuclear energy", "argument": "Small reactor footprints allow deployment in remote or off-grid locations", "stance": "pro"}
 {"argument_number": 70, "topic": "nuclear energy", "argument": "Nuclear power has one of the smallest land-use footprints per unit of energy delivered", "stance": "pro"}
 {"argument_number": 71, "topic": "nuclear energy", "argument": "Nuclear supply chains are highly standardized, enabling economies of scale", "stance": "pro"}
@@ -85,7 +129,7 @@
 {"argument_number": 85, "topic": "nuclear energy", "argument": "Nuclear energy remains cost-competitive in many markets when carbon pricing is applied", "stance": "pro"}
 {"argument_number": 86, "topic": "nuclear energy", "argument": "Interim dry storage technologies simplify waste management until final disposal is ready", "stance": "pro"}
 {"argument_number": 87, "topic": "nuclear energy", "argument": "Advanced accident-tolerant fuel cladding reduces hydrogen generation in severe accidents", "stance": "pro"}
-{"argument_number": 88, "topic": "nuclear energy", "argument": "Nuclear plant uprates can increase output 10\u201320% with minimal additional risk", "stance": "pro"}
+{"argument_number": 88, "topic": "nuclear energy", "argument": "Nuclear plant uprates can increase output 10–20% with minimal additional risk", "stance": "pro"}
 {"argument_number": 89, "topic": "nuclear energy", "argument": "Real-time sensor networks enhance early detection of coolant leaks", "stance": "pro"}
 {"argument_number": 90, "topic": "nuclear energy", "argument": "Integrated SMR arrays can share balance-of-plant systems, lowering per-unit costs", "stance": "pro"}
 {"argument_number": 91, "topic": "nuclear energy", "argument": "Nuclear-generated steam can power steam crackers in petrochemical refineries", "stance": "pro"}
