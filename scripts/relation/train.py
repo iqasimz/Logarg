@@ -76,9 +76,16 @@ def main():
     print(f"Loading data from {DATA_CSV} and checkpoint {PRETRAINED}")
     df = pd.read_csv(DATA_CSV)
 
+    # Ensure enough samples per class for stratified split
+    num_samples = len(df)
+    num_classes = df["label"].nunique()
+    effective_test_size = DEV_SPLIT
+    if num_samples * DEV_SPLIT < num_classes:
+        effective_test_size = num_classes / num_samples
+        print(f"Adjusted DEV_SPLIT to {effective_test_size:.3f} to ensure at least one sample per class in dev set")
     # Stratified train/dev split
     train_df, dev_df = train_test_split(
-        df, test_size=DEV_SPLIT, stratify=df["label"], random_state=42
+        df, test_size=effective_test_size, stratify=df["label"], random_state=42
     )
 
     tokenizer = AutoTokenizer.from_pretrained(PRETRAINED)
@@ -92,11 +99,8 @@ def main():
     model = AutoModelForSequenceClassification.from_pretrained(
         PRETRAINED, num_labels=3
     )
-
-    # Freeze base-model parameters, train only the head
-    for param in model.base_model.parameters():
-        param.requires_grad = False
-    for param in model.classifier.parameters():
+    # Fine-tune all model parameters
+    for param in model.parameters():
         param.requires_grad = True
 
     model.to(DEVICE)
