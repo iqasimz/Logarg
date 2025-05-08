@@ -119,7 +119,6 @@ if st.button("Respond", key="respond_button"):
             df = df[df["relation"] == "attack"]
         elif mode == "Proponent":
             df = df[df["relation"] == "support"]
-
         if df.empty:
             st.warning("No matching arguments found.")
         else:
@@ -134,7 +133,7 @@ if st.button("Respond", key="respond_button"):
                     "argument": best["argument"]
                 })
             else:
-                topn = df.head(5).to_dict("records")
+                topn = df.head(20).to_dict("records")
                 for r in topn:
                     st.session_state.used.add(int(r["idx"]))
                 st.session_state.history.append({
