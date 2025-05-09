@@ -93,6 +93,8 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "used" not in st.session_state:
     st.session_state.used = set()
+if "coach_used" not in st.session_state:
+    st.session_state.coach_used = set()
 if "clear_input" not in st.session_state:
     st.session_state.clear_input = False
 
@@ -177,14 +179,21 @@ if st.button("Respond"):
                 })
         df = pd.DataFrame(recs)
 
-        # Filter by mode
+        # Filter by mode and used arguments with updated logic
+        if mode in ['Opponent', 'Proponent']:
+            # Arguments used in Attack or Support mode cannot be reused in those modes but can be reused in Coach mode
+            df = df[~df['idx'].isin(st.session_state.used)]
+        else:
+            # For Coach mode, arguments used in Coach mode cannot be reused in Coach mode but can be used in Attack or Support modes
+            df = df[~df['idx'].isin(st.session_state.coach_used)]
+            # Add current df indices to coach_used to track usage in coach mode
+            for rec in df.to_dict('records'):
+                st.session_state.coach_used.add(rec['idx'])
+
         if mode == 'Opponent':
             df = df[df['relation'] == 'attack']
         elif mode == 'Proponent':
             df = df[df['relation'] == 'support']
-
-        # Skip used only after filtering
-        df = df[~df['idx'].isin(st.session_state.used)]
 
         if df.empty:
             st.session_state.history.append({
