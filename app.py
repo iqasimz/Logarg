@@ -13,7 +13,7 @@ st.set_page_config(layout="centered")
 
 # ── Load Databank ───────────────────────────────────────────────────────────────
 @st.cache_data
-def load_databank(path="data/databank.jsonl"):
+def load_databank(path="databank.jsonl"):
     return pd.read_json(path, lines=True)
 
 db = load_databank()
@@ -58,7 +58,6 @@ TEMPLATES = {
         "That actually strengthens your position: {argument}"
     ],
 }
-
 COACH_SUPPORT_TEMPLATES = [
     "Here’s how one might support your claim: {support_argument}",
     "Good start. You could strengthen your case with: {support_argument}",
