@@ -158,8 +158,6 @@ if st.button("Respond"):
         recs = []
         for pos, db_idx in enumerate(I[0]):
             orig_idx = int(filtered_db.loc[db_idx, 'index'])
-            if orig_idx in st.session_state.used:
-                continue
             label = REL_LABELS[int(probs[pos].argmax())]
             if user_stance == 'con':
                 if label == 'support': label = 'attack'
@@ -171,12 +169,16 @@ if st.button("Respond"):
                 'score': float(D[0][pos])
             })
 
-        # 4) Filter & respond
         df = pd.DataFrame(recs)
+
+        # Filter by mode
         if mode == 'Opponent':
             df = df[df['relation'] == 'attack']
         elif mode == 'Proponent':
             df = df[df['relation'] == 'support']
+
+        # Skip used only after filtering
+        df = df[~df['idx'].isin(st.session_state.used)]
 
         if df.empty:
             st.session_state.history.append({
