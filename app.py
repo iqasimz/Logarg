@@ -202,32 +202,27 @@ if st.button("Respond"):
             })
         else:
             if mode in ['Opponent', 'Proponent']:
-                # Show top 5 arguments with probabilities
-                top5 = df.head(5).to_dict('records')
+                # Show top 3 arguments with probabilities
+                top3 = df.head(3).to_dict('records')
                 msgs = []
-                for rec in top5:
+                for rec in top3:
                     prob = max(probs[0][int(rec['relation'] == 'attack')], probs[0][int(rec['relation'] == 'support')])
-                    msgs.append(f"Argument: {rec['argument']} | Probability: {prob:.2f}")
-                # Show the final selected argument
-                best = df.iloc[0]
-                tpl = random.choice(TEMPLATES[mode])
-                content = tpl.format(argument=best['argument'])
-                st.session_state.used.add(best['idx'])
-                msgs.append(f"Final Selected Argument: {best['argument']}")
+                    msgs.append(f"{rec['argument']} (Confidence: {prob:.2f})")
+                    st.session_state.used.add(rec['idx'])
                 st.session_state.history.append({"role": "assistant", "content": msgs})
             else:
-                # Coach mode: Show attack, support, and none labels with their respective arguments
+                # Coach mode: Show label inline with each argument
                 top5 = df.head(15).to_dict('records')
                 msgs = []
                 for rec in top5:
                     label = rec['relation']
+                    formatted = f"[{label.upper()}] {rec['argument']}"
                     if label == 'support':
-                        msgs.append(random.choice(COACH_SUPPORT).format(support_argument=rec['argument']))
+                        msgs.append(random.choice(COACH_SUPPORT).format(support_argument=formatted))
                     elif label == 'attack':
-                        msgs.append(random.choice(COACH_ATTACK).format(attack_argument=rec['argument']))
+                        msgs.append(random.choice(COACH_ATTACK).format(attack_argument=formatted))
                     else:
-                        msgs.append(FALLBACK.format(argument=rec['argument']))
-                    msgs.append(f"Label: {label}")
+                        msgs.append(FALLBACK.format(argument=formatted))
                 st.session_state.history.append({"role": "assistant", "content": msgs})
 
         # 5) Reset input & rerun
