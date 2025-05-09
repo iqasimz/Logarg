@@ -38,16 +38,17 @@ rel_tok, rel_mod = load_relation_model()
 REL_LABELS = ["attack", "support", "none"]
 
 # ── Precompute Argument Embeddings & Build FAISS Index ─────────────────────────
+# Note: Leading underscores on tok and model tell Streamlit not to hash them
 @st.cache_resource
-def build_index(texts, tok, model, emb_dim=768):
+def build_index(texts, _tok, _model, emb_dim=768):
     # Tokenize in batches to avoid OOM
     all_embs = []
     batch_size = 32
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i+batch_size]
-        enc = tok(batch, padding=True, truncation=True, return_tensors='pt')
+        enc = _tok(batch, padding=True, truncation=True, return_tensors='pt')
         with torch.no_grad():
-            outs = model.base_model(**enc).last_hidden_state.mean(1)
+            outs = _model.base_model(**enc).last_hidden_state.mean(1)
         all_embs.append(outs.cpu().numpy())
     emb_matrix = np.vstack(all_embs).astype('float32')
     faiss.normalize_L2(emb_matrix)
@@ -112,11 +113,11 @@ def render_chat():
         else:
             bubbles = msg["content"] if isinstance(msg["content"], list) else [msg["content"]]
             for bubble in bubbles:
-                st.markdown(
-                    f"<div style='text-align:left; background:#f1f8e9; padding:8px;"
-                    f" border-radius:8px; margin:4px; color:black;'>{bubble}</div>",
-                    unsafe_allow_html=True
-                )
+                    st.markdown(
+                        f"<div style='text-align:left; background:#f1f8e9; padding:8px;"
+                        f" border-radius:8px; margin:4px; color:black;'>{bubble}</div>",
+                        unsafe_allow_html=True
+                    )
 
 st.title("Logarg Debate Assistant")
 render_chat()
