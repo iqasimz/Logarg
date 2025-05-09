@@ -41,7 +41,6 @@ REL_LABELS = ["attack", "support", "none"]
 # Note: Leading underscores on tok and model tell Streamlit not to hash them
 @st.cache_resource
 def build_index(texts, _tok, _model, emb_dim=768):
-    # Tokenize in batches to avoid OOM
     all_embs = []
     batch_size = 32
     for i in range(0, len(texts), batch_size):
@@ -113,11 +112,11 @@ def render_chat():
         else:
             bubbles = msg["content"] if isinstance(msg["content"], list) else [msg["content"]]
             for bubble in bubbles:
-                    st.markdown(
-                        f"<div style='text-align:left; background:#f1f8e9; padding:8px;"
-                        f" border-radius:8px; margin:4px; color:black;'>{bubble}</div>",
-                        unsafe_allow_html=True
-                    )
+                st.markdown(
+                    f"<div style='text-align:left; background:#f1f8e9; padding:8px;"
+                    f" border-radius:8px; margin:4px; color:black;'>{bubble}</div>",
+                    unsafe_allow_html=True
+                )
 
 st.title("Logarg Debate Assistant")
 render_chat()
@@ -175,9 +174,9 @@ if st.button("Respond"):
         # 4) Filter & respond
         df = pd.DataFrame(recs)
         if mode == 'Opponent':
-            df = df[df.relation == 'attack']
+            df = df[df['relation'] == 'attack']
         elif mode == 'Proponent':
-            df = df[df.relation == 'support']
+            df = df[df['relation'] == 'support']
 
         if df.empty:
             st.session_state.history.append({
