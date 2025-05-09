@@ -22,9 +22,6 @@ topics = sorted(db['topic'].unique())
 selected_topic = st.sidebar.selectbox("Select debate topic:", topics)
 filtered_db = db[db['topic'] == selected_topic].reset_index(drop=False)
 mode = st.sidebar.selectbox("Mode", ["Proponent", "Opponent", "Debating Coach"])
-user_stance = st.sidebar.selectbox(
-    f"Your stance on {selected_topic}", ["Pro", "Con"]
-).lower()
 
 # ── Load Relation Model & Tokenizer ────────────────────────────────────────────
 @st.cache_resource
@@ -159,9 +156,6 @@ if st.button("Respond"):
         for pos, db_idx in enumerate(I[0]):
             orig_idx = int(filtered_db.loc[db_idx, 'index'])
             label = REL_LABELS[int(probs[pos].argmax())]
-            if user_stance == 'con':
-                if label == 'support': label = 'attack'
-                elif label == 'attack': label = 'support'
             recs.append({
                 'idx': orig_idx,
                 'argument': arg_texts[db_idx],
