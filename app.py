@@ -140,12 +140,14 @@ if st.button("Respond"):
             user_emb = rel_mod.base_model(**enc).last_hidden_state.mean(1).cpu().numpy().astype('float32')
         faiss.normalize_L2(user_emb)
 
-        # 2) Retrieve top-k
-        k = 10
-        D, I = index.search(user_emb, k)
-
-        # 3) Batch relation classification on top-k
-        batch_args = [arg_texts[i] for i in I[0]]
+        # 2) Retrieve top-k or use all arguments based on mode
+        k = 150
+        if mode == "Opponent":
+            batch_args = arg_texts  # Use the full set of arguments
+        else:
+            D, I = index.search(user_emb, k)
+            batch_args = [arg_texts[i] for i in I[0]]
+        # 3) Batch relation classification on selected arguments
         batch_texts = [user_input] * len(batch_args)
         enc2 = rel_tok(batch_texts, batch_args, padding=True, truncation=True, return_tensors='pt')
         with torch.no_grad():
@@ -153,16 +155,26 @@ if st.button("Respond"):
             probs = torch.softmax(logits, dim=1).cpu().numpy()
 
         recs = []
-        for pos, db_idx in enumerate(I[0]):
-            orig_idx = int(filtered_db.loc[db_idx, 'index'])
-            label = REL_LABELS[int(probs[pos].argmax())]
-            recs.append({
-                'idx': orig_idx,
-                'argument': arg_texts[db_idx],
-                'relation': label,
-                'score': float(D[0][pos])
-            })
-
+        if mode == "Opponent":
+            for pos, arg in enumerate(arg_texts):
+                orig_idx = int(filtered_db.loc[pos, 'index'])
+                label = REL_LABELS[int(probs[pos].argmax())]
+                recs.append({
+                    'idx': orig_idx,
+                    'argument': arg,
+                    'relation': label,
+                    'score': 0.0  # Score not used in Opponent mode
+                })
+        else:
+            for pos, db_idx in enumerate(I[0]):
+                orig_idx = int(filtered_db.loc[db_idx, 'index'])
+                label = REL_LABELS[int(probs[pos].argmax())]
+                recs.append({
+                    'idx': orig_idx,
+                    'argument': arg_texts[db_idx],
+                    'relation': label,
+                    'score': float(D[0][pos])
+                })
         df = pd.DataFrame(recs)
 
         # Filter by mode
