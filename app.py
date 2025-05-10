@@ -1,3 +1,10 @@
+import os
+# Must come before any imports of torch/faiss/etc.
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+import streamlit as st
+import pandas as pd
+# ...
 import streamlit as st
 import pandas as pd
 import torch
@@ -144,9 +151,10 @@ if st.button("Respond"):
 
         # 2) Retrieve top-k or use all arguments based on mode
         k = 150
-        if mode == "Opponent":
-            batch_args = arg_texts  # Use the full set of arguments
-        else:
+        if mode in ["Opponent", "Debating Coach"]:
+            # Use full set for Opponent and Coach to avoid FAISS bias
+            batch_args = arg_texts
+        else:  # Proponent mode
             D, I = index.search(user_emb, k)
             batch_args = [arg_texts[i] for i in I[0]]
         # 3) Batch relation classification on selected arguments
@@ -156,26 +164,41 @@ if st.button("Respond"):
             logits = rel_mod(**enc2).logits
             probs = torch.softmax(logits, dim=1).cpu().numpy()
 
+        # 3) Build recs list per mode
         recs = []
         if mode == "Opponent":
+            # Use all arguments, no scores
             for pos, arg in enumerate(arg_texts):
                 orig_idx = int(filtered_db.loc[pos, 'index'])
-                label = REL_LABELS[int(probs[pos].argmax())]
+                lid = int(np.argmax(probs[pos]))
                 recs.append({
                     'idx': orig_idx,
                     'argument': arg,
-                    'relation': label,
-                    'score': 0.0  # Score not used in Opponent mode
+                    'relation': REL_LABELS[lid],
+                    'score': 0.0
                 })
-        else:
+        elif mode == "Proponent":
+            # Use top-k from FAISS
+            D, I = index.search(user_emb, k)
             for pos, db_idx in enumerate(I[0]):
                 orig_idx = int(filtered_db.loc[db_idx, 'index'])
-                label = REL_LABELS[int(probs[pos].argmax())]
+                lid = int(np.argmax(probs[pos]))
                 recs.append({
                     'idx': orig_idx,
                     'argument': arg_texts[db_idx],
-                    'relation': label,
+                    'relation': REL_LABELS[lid],
                     'score': float(D[0][pos])
+                })
+        else:  # Debating Coach
+            # Use all arguments, no scores
+            for pos, arg in enumerate(arg_texts):
+                orig_idx = int(filtered_db.loc[pos, 'index'])
+                lid = int(np.argmax(probs[pos]))
+                recs.append({
+                    'idx': orig_idx,
+                    'argument': arg,
+                    'relation': REL_LABELS[lid],
+                    'score': 0.0
                 })
         df = pd.DataFrame(recs)
 
@@ -184,11 +207,8 @@ if st.button("Respond"):
             # Arguments used in Attack or Support mode cannot be reused in those modes but can be reused in Coach mode
             df = df[~df['idx'].isin(st.session_state.used)]
         else:
-            # For Coach mode, arguments used in Coach mode cannot be reused in Coach mode but can be used in Attack or Support modes
+            # For Coach mode, filter out only those already shown
             df = df[~df['idx'].isin(st.session_state.coach_used)]
-            # Add current df indices to coach_used to track usage in coach mode
-            for rec in df.to_dict('records'):
-                st.session_state.coach_used.add(rec['idx'])
 
         if mode == 'Opponent':
             df = df[df['relation'] == 'attack']
@@ -211,10 +231,12 @@ if st.button("Respond"):
                     st.session_state.used.add(rec['idx'])
                 st.session_state.history.append({"role": "assistant", "content": msgs})
             else:
-                # Coach mode: Show label inline with each argument
-                top5 = df.head(15).to_dict('records')
+                # Coach mode: show up to 5 fresh arguments and mark only those displayed
+                top5 = df.head(5).to_dict('records')
                 msgs = []
                 for rec in top5:
+                    # Mark only the ones we display
+                    st.session_state.coach_used.add(rec['idx'])
                     label = rec['relation']
                     formatted = f"[{label.upper()}] {rec['argument']}"
                     if label == 'support':
