@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-# 1. Load your fine-tuned relation tagger (3 labels)
-repo_dir = "models/relationtagger"
-model     = AutoModelForSequenceClassification.from_pretrained(repo_dir)
-tokenizer = AutoTokenizer.from_pretrained(repo_dir)
+# Local checkpoint and HF repo ID
+LOCAL_DIR = "models/relationtagger"
+REPO_ID   = "iqasimz/logarg-relationtagger"
 
-# 2. Specify your HF repo ID
-hf_repo_id = "iqasimz/logarg-relationtagger"
+# Load your fine-tuned model & tokenizer
+model     = AutoModelForSequenceClassification.from_pretrained(LOCAL_DIR)
+tokenizer = AutoTokenizer.from_pretrained(LOCAL_DIR)
 
-# 3. Push to the Hub
-model.push_to_hub(hf_repo_id)
-tokenizer.push_to_hub(hf_repo_id)
+# Push to the existing Hugging Face repo
+model.push_to_hub(REPO_ID)
+tokenizer.push_to_hub(REPO_ID)
 
-print(f"Pushed updated model & tokenizer to https://huggingface.co/{hf_repo_id}")
+print(f"✅ Pushed updated model & tokenizer to https://huggingface.co/{REPO_ID}")
