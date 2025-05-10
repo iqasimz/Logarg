@@ -159,7 +159,7 @@ if st.button("Respond"):
             batch_args = [arg_texts[i] for i in I[0]]
         # 3) Batch relation classification on selected arguments
         batch_texts = [user_input] * len(batch_args)
-        enc2 = rel_tok(batch_texts, batch_args, padding=True, truncation=True, return_tensors='pt')
+        enc2 = rel_tok(batch_args, batch_texts, padding=True, truncation=True, return_tensors='pt')
         with torch.no_grad():
             logits = rel_mod(**enc2).logits
             probs = torch.softmax(logits, dim=1).cpu().numpy()
