@@ -162,9 +162,11 @@ if st.button("Respond"):
             st.session_state.coach_used.clear()
             st.session_state.last_input = user_input
 
-        # Detect true syntactic negation
+        # Detect negation + sentiment
         has_syntactic_neg = any(tok.dep_ == "neg" for tok in nlp(user_input))
-        neg_flag = has_syntactic_neg
+        sent_scores = VADER.polarity_scores(user_input)
+        has_negative_sent = sent_scores["compound"] < -0.05
+        neg_flag = has_syntactic_neg or has_negative_sent
 
         # Detect strong negative sentiment for override
         sent_scores = VADER.polarity_scores(user_input)
@@ -251,9 +253,6 @@ if st.button("Respond"):
                 rel = REL_LABELS[lid]
                 if neg_flag and rel in ("support","attack"):
                     rel = "attack" if rel=="support" else "support"
-                # sentiment-based override for none
-                if rel == "none" and neg_sent:
-                    rel = "attack"
                 recs.append({
                     'idx': orig_idx,
                     'argument': arg,
@@ -268,9 +267,6 @@ if st.button("Respond"):
                 rel = REL_LABELS[lid]
                 if neg_flag and rel in ("support","attack"):
                     rel = "attack" if rel=="support" else "support"
-                # sentiment-based override for none
-                if rel == "none" and neg_sent:
-                    rel = "attack"
                 score = float(D[0][pos]) if 'D' in locals() else 0.0
                 recs.append({
                     'idx': orig_idx,
@@ -285,9 +281,6 @@ if st.button("Respond"):
                 rel = REL_LABELS[lid]
                 if neg_flag and rel in ("support","attack"):
                     rel = "attack" if rel=="support" else "support"
-                # sentiment-based override for none
-                if rel == "none" and neg_sent:
-                    rel = "attack"
                 recs.append({
                     'idx': orig_idx,
                     'argument': arg,
