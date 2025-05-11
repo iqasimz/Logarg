@@ -21,7 +21,7 @@ VADER = SentimentIntensityAnalyzer()
 
 # SBERT for topic-filtering
 SBERT_MODEL = SentenceTransformer('paraphrase-MiniLM-L6-v2')
-TOPIC_THRESHOLD = 0.55  # similarity threshold for “none” filtering
+TOPIC_THRESHOLD = 0.4  # similarity threshold for “none” filtering
 
 # Use a dedicated SBERT model for retrieval
 RETRIEVAL_MODEL = SBERT_MODEL
