@@ -75,6 +75,8 @@ def main():
     os.makedirs(MODEL_DIR, exist_ok=True)
     print(f"Loading data from {DATA_CSV} and checkpoint {PRETRAINED}")
     df = pd.read_csv(DATA_CSV)
+    # Drop any rows with missing sentence or label values
+    df.dropna(subset=["sentence1", "sentence2", "label"], inplace=True)
 
     # Ensure enough samples per class for stratified split
     num_samples = len(df)

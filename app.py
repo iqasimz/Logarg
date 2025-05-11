@@ -8,6 +8,12 @@ import pandas as pd
 import streamlit as st
 import pandas as pd
 import torch
+from sentence_transformers import SentenceTransformer
+import torch.nn.functional as F
+
+# SBERT for topic-filtering
+SBERT_MODEL = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+TOPIC_THRESHOLD = 0.55  # similarity threshold for “none” filtering
 import numpy as np
 import faiss
 import random
@@ -157,7 +163,33 @@ if st.button("Respond"):
         else:  # Proponent mode
             D, I = index.search(user_emb, k)
             batch_args = [arg_texts[i] for i in I[0]]
-        # 3) Batch relation classification on selected arguments
+        # 3) Stage 1: Topic-filtering via SBERT
+        user_emb_sbert = SBERT_MODEL.encode([user_input], convert_to_tensor=True)
+        arg_embs_sbert = SBERT_MODEL.encode(batch_args, convert_to_tensor=True)
+        cos_scores = F.cosine_similarity(arg_embs_sbert, user_emb_sbert.expand_as(arg_embs_sbert), dim=1)
+        keep_idx = [i for i, score in enumerate(cos_scores) if score.item() > TOPIC_THRESHOLD]
+        if not keep_idx:
+            # No relevant arguments -> all “none”
+            recs = []
+            for arg in batch_args[:3]:
+                recs.append({
+                    'idx': None,
+                    'argument': arg,
+                    'relation': 'none',
+                    'score': 0.0,
+                    'prob': 1.0
+                })
+            # Show these as the response and exit
+            msgs = [f"{r['argument']} (Confidence: {r['prob']:.2f})" for r in recs]
+            st.session_state.history.append({"role": "assistant", "content": msgs})
+            st.session_state.clear_input = True
+            st.experimental_rerun()
+        # Filter for Stage 2
+        batch_args = [batch_args[i] for i in keep_idx]
+        if mode == "Proponent":
+            D = [[D[0][i] for i in keep_idx]]
+            I = [[I[0][i] for i in keep_idx]]
+        # 4) Stage 2: Batch relation classification on selected arguments
         batch_texts = [user_input] * len(batch_args)
         enc2 = rel_tok(batch_args, batch_texts, padding=True, truncation=True, return_tensors='pt')
         with torch.no_grad():
