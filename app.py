@@ -195,10 +195,12 @@ if st.button("Respond"):
                 D = [list(scores_list)]
                 I = [list(idx_list)]
                 batch_args = [arg_texts[i] for i in idx_list]
+                orig_indices = [filtered_db['index'].tolist()[i] for i in idx_list]
             else:
                 D = [[]]
                 I = [[]]
                 batch_args = []
+                orig_indices = []
 
         # 3) Stage 1: SBERT topic filter (skip for Opponent)
         if mode == "Opponent":
