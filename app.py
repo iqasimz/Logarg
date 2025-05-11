@@ -55,9 +55,9 @@ REL_LABELS = ["attack", "support", "none"]
 
 # ── Precompute Argument Embeddings & Build FAISS Index ─────────────────────────
 @st.cache_resource
-def build_index(texts, emb_model):
+def build_index(texts, _emb_model):
     # Compute SBERT embeddings for retrieval
-    emb_matrix = emb_model.encode(
+    emb_matrix = _emb_model.encode(
         texts, show_progress_bar=False, convert_to_numpy=True
     ).astype('float32')
     faiss.normalize_L2(emb_matrix)
