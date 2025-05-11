@@ -4,21 +4,25 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import streamlit as st
 import pandas as pd
-# ...
-import streamlit as st
-import pandas as pd
 import torch
-from sentence_transformers import SentenceTransformer
-import torch.nn.functional as F
-
-# SBERT for topic-filtering
-SBERT_MODEL = SentenceTransformer('paraphrase-MiniLM-L6-v2')
-TOPIC_THRESHOLD = 0.55  # similarity threshold for “none” filtering
 import numpy as np
 import faiss
 import random
 import time
+
+from sentence_transformers import SentenceTransformer
+import torch.nn.functional as F
+import spacy
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+# Load spaCy and VADER
+nlp = spacy.load("en_core_web_sm")
+VADER = SentimentIntensityAnalyzer()
+
+# SBERT for topic-filtering
+SBERT_MODEL = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+TOPIC_THRESHOLD = 0.55  # similarity threshold for “none” filtering
 
 # ── Page Config ────────────────────────────────────────────────────────────────
 st.set_page_config(layout="centered")
@@ -30,7 +34,7 @@ def load_databank(path="databank.jsonl"):
 
 db = load_databank()
 
-# ── Sidebar: Topic, Mode, Stance ───────────────────────────────────────────────
+# ── Sidebar: Topic, Mode ───────────────────────────────────────────────────────
 topics = sorted(db['topic'].unique())
 selected_topic = st.sidebar.selectbox("Select debate topic:", topics)
 filtered_db = db[db['topic'] == selected_topic].reset_index(drop=False)
@@ -48,7 +52,6 @@ rel_tok, rel_mod = load_relation_model()
 REL_LABELS = ["attack", "support", "none"]
 
 # ── Precompute Argument Embeddings & Build FAISS Index ─────────────────────────
-# Note: Leading underscores on tok and model tell Streamlit not to hash them
 @st.cache_resource
 def build_index(texts, _tok, _model, emb_dim=768):
     all_embs = []
@@ -106,6 +109,10 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "used" not in st.session_state:
     st.session_state.used = set()
+if "used_opp" not in st.session_state:
+    st.session_state.used_opp = set()
+if "used_prop" not in st.session_state:
+    st.session_state.used_prop = set()
 if "coach_used" not in st.session_state:
     st.session_state.coach_used = set()
 if "clear_input" not in st.session_state:
@@ -147,7 +154,19 @@ if st.button("Respond"):
     if not user_input.strip():
         st.error("Please enter a statement.")
     else:
+        # Append user message
         st.session_state.history.append({"role": "user", "text": user_input})
+
+        # Reset Opponent pool on new claim
+        if st.session_state.get("last_input") != user_input:
+            st.session_state.used_opp.clear()
+            st.session_state.last_input = user_input
+
+        # Detect negation + sentiment
+        has_syntactic_neg = any(tok.dep_ == "neg" for tok in nlp(user_input))
+        sent_scores = VADER.polarity_scores(user_input)
+        has_negative_sent = sent_scores["compound"] < -0.05
+        neg_flag = has_syntactic_neg or has_negative_sent
 
         # 1) Compute user embedding
         enc = rel_tok([user_input], padding=True, truncation=True, return_tensors='pt')
@@ -155,100 +174,119 @@ if st.button("Respond"):
             user_emb = rel_mod.base_model(**enc).last_hidden_state.mean(1).cpu().numpy().astype('float32')
         faiss.normalize_L2(user_emb)
 
-        # 2) Retrieve top-k or use all arguments based on mode
+        # 2) Retrieve candidates
         k = 150
         if mode in ["Opponent", "Debating Coach"]:
-            # Use full set for Opponent and Coach to avoid FAISS bias
             batch_args = arg_texts
-        else:  # Proponent mode
+        else:
             D, I = index.search(user_emb, k)
             batch_args = [arg_texts[i] for i in I[0]]
-        # 3) Stage 1: Topic-filtering via SBERT
-        user_emb_sbert = SBERT_MODEL.encode([user_input], convert_to_tensor=True)
-        arg_embs_sbert = SBERT_MODEL.encode(batch_args, convert_to_tensor=True)
-        cos_scores = F.cosine_similarity(arg_embs_sbert, user_emb_sbert.expand_as(arg_embs_sbert), dim=1)
-        keep_idx = [i for i, score in enumerate(cos_scores) if score.item() > TOPIC_THRESHOLD]
-        if not keep_idx:
-            # No relevant arguments -> all “none”
-            recs = []
-            for arg in batch_args[:3]:
-                recs.append({
+
+        # Track original indices
+        if mode in ["Opponent", "Debating Coach"]:
+            orig_indices = filtered_db['index'].tolist()
+        else:
+            orig_indices = [int(filtered_db.loc[i, 'index']) for i in I[0]]
+
+        # 3) Stage 1: SBERT topic filter (skip for Opponent)
+        if mode == "Opponent":
+            keep_idx = list(range(len(batch_args)))
+        else:
+            user_emb_sbert = SBERT_MODEL.encode([user_input], convert_to_tensor=True)
+            arg_embs_sbert = SBERT_MODEL.encode(batch_args, convert_to_tensor=True)
+            cos_scores = F.cosine_similarity(
+                arg_embs_sbert,
+                user_emb_sbert.expand_as(arg_embs_sbert),
+                dim=1
+            )
+            keep_idx = [i for i, s in enumerate(cos_scores) if s.item() > TOPIC_THRESHOLD]
+            if not keep_idx:
+                recs = [{
                     'idx': None,
                     'argument': arg,
                     'relation': 'none',
                     'score': 0.0,
                     'prob': 1.0
-                })
-            # Show these as the response and exit
-            msgs = [f"{r['argument']} (Confidence: {r['prob']:.2f})" for r in recs]
-            st.session_state.history.append({"role": "assistant", "content": msgs})
-            st.session_state.clear_input = True
-            st.experimental_rerun()
-        # Filter for Stage 2
+                } for arg in batch_args[:3]]
+                msgs = [f"{r['argument']} (Confidence: {r['prob']:.2f})" for r in recs]
+                st.session_state.history.append({"role": "assistant", "content": msgs})
+                st.session_state.clear_input = True
+                st.experimental_rerun()
+
+        # Filter candidates for stage 2
         batch_args = [batch_args[i] for i in keep_idx]
+        orig_indices = [orig_indices[i] for i in keep_idx]
         if mode == "Proponent":
             D = [[D[0][i] for i in keep_idx]]
             I = [[I[0][i] for i in keep_idx]]
-        # 4) Stage 2: Batch relation classification on selected arguments
+
+        # 4) Stage 2: Relation classification
         batch_texts = [user_input] * len(batch_args)
         enc2 = rel_tok(batch_args, batch_texts, padding=True, truncation=True, return_tensors='pt')
         with torch.no_grad():
             logits = rel_mod(**enc2).logits
             probs = torch.softmax(logits, dim=1).cpu().numpy()
 
-        # 3) Build recs list per mode
+        # 5) Build recs
         recs = []
         if mode == "Opponent":
-            # Use all arguments, no scores
-            for pos, arg in enumerate(arg_texts):
-                orig_idx = int(filtered_db.loc[pos, 'index'])
+            for pos, (arg, orig_idx) in enumerate(zip(batch_args, orig_indices)):
                 lid = int(np.argmax(probs[pos]))
+                rel = REL_LABELS[lid]
+                if neg_flag and rel in ("support","attack"):
+                    rel = "attack" if rel=="support" else "support"
                 recs.append({
                     'idx': orig_idx,
                     'argument': arg,
-                    'relation': REL_LABELS[lid],
+                    'relation': rel,
                     'score': 0.0,
                     'prob': float(probs[pos][lid])
                 })
         elif mode == "Proponent":
-            # Use top-k from FAISS
-            D, I = index.search(user_emb, k)
-            for pos, db_idx in enumerate(I[0]):
-                orig_idx = int(filtered_db.loc[db_idx, 'index'])
+            for pos, (arg, orig_idx) in enumerate(zip(batch_args, orig_indices)):
                 lid = int(np.argmax(probs[pos]))
-                recs.append({
-                    'idx': orig_idx,
-                    'argument': arg_texts[db_idx],
-                    'relation': REL_LABELS[lid],
-                    'score': float(D[0][pos]),
-                    'prob': float(probs[pos][lid])
-                })
-        else:  # Debating Coach
-            # Use all arguments, no scores
-            for pos, arg in enumerate(arg_texts):
-                orig_idx = int(filtered_db.loc[pos, 'index'])
-                lid = int(np.argmax(probs[pos]))
+                rel = REL_LABELS[lid]
+                if neg_flag and rel in ("support","attack"):
+                    rel = "attack" if rel=="support" else "support"
+                score = float(D[0][pos]) if 'D' in locals() else 0.0
                 recs.append({
                     'idx': orig_idx,
                     'argument': arg,
-                    'relation': REL_LABELS[lid],
-                    'score': 0.0
+                    'relation': rel,
+                    'score': score,
+                    'prob': float(probs[pos][lid])
                 })
+        else:  # Debating Coach
+            for pos, (arg, orig_idx) in enumerate(zip(batch_args, orig_indices)):
+                lid = int(np.argmax(probs[pos]))
+                rel = REL_LABELS[lid]
+                if neg_flag and rel in ("support","attack"):
+                    rel = "attack" if rel=="support" else "support"
+                recs.append({
+                    'idx': orig_idx,
+                    'argument': arg,
+                    'relation': rel,
+                    'score': 0.0,
+                    'prob': float(probs[pos][lid])
+                })
+
         df = pd.DataFrame(recs)
 
-        # Filter by mode and used arguments with updated logic
-        if mode in ['Opponent', 'Proponent']:
-            # Arguments used in Attack or Support mode cannot be reused in those modes but can be reused in Coach mode
-            df = df[~df['idx'].isin(st.session_state.used)]
+        # 6) Filter out used per mode
+        if mode == 'Opponent':
+            df = df[~df['idx'].isin(st.session_state.used_opp)]
+        elif mode == 'Proponent':
+            df = df[~df['idx'].isin(st.session_state.used_prop)]
         else:
-            # For Coach mode, filter out only those already shown
             df = df[~df['idx'].isin(st.session_state.coach_used)]
 
+        # 7) Filter by relation
         if mode == 'Opponent':
             df = df[df['relation'] == 'attack']
         elif mode == 'Proponent':
             df = df[df['relation'] == 'support']
 
+        # 8) Display
         if df.empty:
             st.session_state.history.append({
                 "role": "assistant",
@@ -256,20 +294,20 @@ if st.button("Respond"):
             })
         else:
             if mode in ['Opponent', 'Proponent']:
-                # Show top 3 arguments with probabilities
-                top3 = df.head(3).to_dict('records')
-                msgs = []
-                for rec in top3:
+                top1 = df.head(1).to_dict('records')
+                if top1:
+                    rec = top1[0]
                     prob = rec.get('prob', 0.0)
-                    msgs.append(f"{rec['argument']} (Confidence: {prob:.2f})")
-                    st.session_state.used.add(rec['idx'])
-                st.session_state.history.append({"role": "assistant", "content": msgs})
+                    msg = f"{rec['argument']} (Confidence: {prob:.2f})"
+                    if mode == 'Opponent':
+                        st.session_state.used_opp.add(rec['idx'])
+                    else:
+                        st.session_state.used_prop.add(rec['idx'])
+                    st.session_state.history.append({"role": "assistant", "content": [msg]})
             else:
-                # Coach mode: show up to 5 fresh arguments and mark only those displayed
-                top5 = df.head(5).to_dict('records')
+                top5 = df.head(10).to_dict('records')
                 msgs = []
                 for rec in top5:
-                    # Mark only the ones we display
                     st.session_state.coach_used.add(rec['idx'])
                     label = rec['relation']
                     formatted = f"[{label.upper()}] {rec['argument']}"
@@ -281,6 +319,6 @@ if st.button("Respond"):
                         msgs.append(FALLBACK.format(argument=formatted))
                 st.session_state.history.append({"role": "assistant", "content": msgs})
 
-        # 5) Reset input & rerun
+        # 9) Reset input & rerun
         st.session_state.clear_input = True
         st.experimental_rerun()

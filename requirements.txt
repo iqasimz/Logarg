@@ -47,4 +47,6 @@ gdown>=4.6.4
 huggingface_hub>=0.14.1
 faiss-cpu
 sentence-transformers==3.2.1
-spacy>=3.0.0
+spacy=3.6.1
+vaderSentiment==3.3.2
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.6.0/en_core_web_sm-3.6.0.tar.gz
