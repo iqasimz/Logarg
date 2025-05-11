@@ -9,7 +9,6 @@ import numpy as np
 import faiss
 import random
 import time
-
 from sentence_transformers import SentenceTransformer
 import torch.nn.functional as F
 import spacy
