@@ -23,6 +23,9 @@ VADER = SentimentIntensityAnalyzer()
 SBERT_MODEL = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 TOPIC_THRESHOLD = 0.55  # similarity threshold for “none” filtering
 
+# Use a dedicated SBERT model for retrieval
+RETRIEVAL_MODEL = SBERT_MODEL
+
 # ── Page Config ────────────────────────────────────────────────────────────────
 st.set_page_config(layout="centered")
 
@@ -52,23 +55,19 @@ REL_LABELS = ["attack", "support", "none"]
 
 # ── Precompute Argument Embeddings & Build FAISS Index ─────────────────────────
 @st.cache_resource
-def build_index(texts, _tok, _model, emb_dim=768):
-    all_embs = []
-    batch_size = 32
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i:i+batch_size]
-        enc = _tok(batch, padding=True, truncation=True, return_tensors='pt')
-        with torch.no_grad():
-            outs = _model.base_model(**enc).last_hidden_state.mean(1)
-        all_embs.append(outs.cpu().numpy())
-    emb_matrix = np.vstack(all_embs).astype('float32')
+def build_index(texts, emb_model):
+    # Compute SBERT embeddings for retrieval
+    emb_matrix = emb_model.encode(
+        texts, show_progress_bar=False, convert_to_numpy=True
+    ).astype('float32')
     faiss.normalize_L2(emb_matrix)
-    index = faiss.IndexFlatIP(emb_dim)
+    dim = emb_matrix.shape[1]
+    index = faiss.IndexFlatIP(dim)
     index.add(emb_matrix)
     return index, emb_matrix
 
 arg_texts = filtered_db['argument'].tolist()
-index, arg_embs = build_index(arg_texts, rel_tok, rel_mod)
+index, arg_embs = build_index(arg_texts, RETRIEVAL_MODEL)
 
 # ── Templates ─────────────────────────────────────────────────────────────────
 TEMPLATES = {
@@ -156,16 +155,20 @@ if st.button("Respond"):
         # Append user message
         st.session_state.history.append({"role": "user", "text": user_input})
 
-        # Reset Opponent pool on new claim
+        # Reset all “used” sets on a new user statement
         if st.session_state.get("last_input") != user_input:
             st.session_state.used_opp.clear()
+            st.session_state.used_prop.clear()
+            st.session_state.coach_used.clear()
             st.session_state.last_input = user_input
 
-        # Detect negation + sentiment
+        # Detect true syntactic negation
         has_syntactic_neg = any(tok.dep_ == "neg" for tok in nlp(user_input))
+        neg_flag = has_syntactic_neg
+
+        # Detect strong negative sentiment for override
         sent_scores = VADER.polarity_scores(user_input)
-        has_negative_sent = sent_scores["compound"] < -0.05
-        neg_flag = has_syntactic_neg or has_negative_sent
+        neg_sent = sent_scores["compound"] < -0.3
 
         # 1) Compute user embedding
         enc = rel_tok([user_input], padding=True, truncation=True, return_tensors='pt')
@@ -176,7 +179,11 @@ if st.button("Respond"):
         # 2) Retrieve candidates
         k = 150
         if mode in ["Opponent", "Debating Coach"]:
-            batch_args = arg_texts
+            # Narrow down to top-k candidates before classification
+            D_opp, I_opp = index.search(user_emb, k)
+            valid_idxs = [i for i in I_opp[0] if i >= 0]
+            batch_args = [arg_texts[i] for i in valid_idxs]
+            orig_indices = [filtered_db['index'].tolist()[i] for i in valid_idxs]
         else:  # Proponent mode
             D, I = index.search(user_emb, k)
             # Remove invalid (-1) indices from FAISS output
@@ -192,12 +199,6 @@ if st.button("Respond"):
                 D = [[]]
                 I = [[]]
                 batch_args = []
-
-        # Track original indices
-        if mode in ["Opponent", "Debating Coach"]:
-            orig_indices = filtered_db['index'].tolist()
-        else:  # Proponent mode
-            orig_indices = [int(filtered_db.loc[i, 'index']) for i in I[0]]
 
         # 3) Stage 1: SBERT topic filter (skip for Opponent)
         if mode == "Opponent":
@@ -222,7 +223,6 @@ if st.button("Respond"):
                 msgs = [f"{r['argument']} (Confidence: {r['prob']:.2f})" for r in recs]
                 st.session_state.history.append({"role": "assistant", "content": msgs})
                 st.session_state.clear_input = True
-                st.experimental_rerun()
 
         # Filter candidates for stage 2
         batch_args = [batch_args[i] for i in keep_idx]
@@ -245,9 +245,11 @@ if st.button("Respond"):
                 row_probs = probs[pos]
                 lid = int(np.argmax(row_probs))
                 rel = REL_LABELS[lid]
-                # Flip support/attack if negated
                 if neg_flag and rel in ("support","attack"):
                     rel = "attack" if rel=="support" else "support"
+                # sentiment-based override for none
+                if rel == "none" and neg_sent:
+                    rel = "attack"
                 recs.append({
                     'idx': orig_idx,
                     'argument': arg,
@@ -262,6 +264,9 @@ if st.button("Respond"):
                 rel = REL_LABELS[lid]
                 if neg_flag and rel in ("support","attack"):
                     rel = "attack" if rel=="support" else "support"
+                # sentiment-based override for none
+                if rel == "none" and neg_sent:
+                    rel = "attack"
                 score = float(D[0][pos]) if 'D' in locals() else 0.0
                 recs.append({
                     'idx': orig_idx,
@@ -276,6 +281,9 @@ if st.button("Respond"):
                 rel = REL_LABELS[lid]
                 if neg_flag and rel in ("support","attack"):
                     rel = "attack" if rel=="support" else "support"
+                # sentiment-based override for none
+                if rel == "none" and neg_sent:
+                    rel = "attack"
                 recs.append({
                     'idx': orig_idx,
                     'argument': arg,
@@ -339,6 +347,5 @@ if st.button("Respond"):
                         msgs.append(FALLBACK.format(argument=formatted))
                 st.session_state.history.append({"role": "assistant", "content": msgs})
 
-        # 9) Reset input & rerun
+        # 9) Reset input
         st.session_state.clear_input = True
-        st.experimental_rerun()
