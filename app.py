@@ -170,10 +170,10 @@ if st.button("Respond"):
         sent_scores = VADER.polarity_scores(user_input)
         neg_sent = sent_scores["compound"] < -0.3
 
-        # 1) Compute user embedding
-        enc = rel_tok([user_input], padding=True, truncation=True, return_tensors='pt')
-        with torch.no_grad():
-            user_emb = rel_mod.base_model(**enc).last_hidden_state.mean(1).cpu().numpy().astype('float32')
+        # 1) Compute user embedding for retrieval via SBERT
+        user_emb = RETRIEVAL_MODEL.encode(
+            [user_input], show_progress_bar=False, convert_to_numpy=True
+        ).astype('float32')
         faiss.normalize_L2(user_emb)
 
         # 2) Retrieve candidates
