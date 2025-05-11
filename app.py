@@ -177,6 +177,8 @@ if st.button("Respond"):
         faiss.normalize_L2(user_emb)
 
         # 2) Retrieve candidates
+        # Default original indices (will be overridden per mode)
+        orig_indices = filtered_db['index'].tolist()
         k = 150
         if mode in ["Opponent", "Debating Coach"]:
             # Narrow down to top-k candidates before classification
