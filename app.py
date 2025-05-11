@@ -177,14 +177,26 @@ if st.button("Respond"):
         k = 150
         if mode in ["Opponent", "Debating Coach"]:
             batch_args = arg_texts
-        else:
+        else:  # Proponent mode
             D, I = index.search(user_emb, k)
-            batch_args = [arg_texts[i] for i in I[0]]
+            # Remove invalid (-1) indices from FAISS output
+            faiss_scores = D[0].tolist()
+            faiss_idxs   = I[0].tolist()
+            valid_pairs = [(score, idx) for score, idx in zip(faiss_scores, faiss_idxs) if idx >= 0]
+            if valid_pairs:
+                scores_list, idx_list = zip(*valid_pairs)
+                D = [list(scores_list)]
+                I = [list(idx_list)]
+                batch_args = [arg_texts[i] for i in idx_list]
+            else:
+                D = [[]]
+                I = [[]]
+                batch_args = []
 
         # Track original indices
         if mode in ["Opponent", "Debating Coach"]:
             orig_indices = filtered_db['index'].tolist()
-        else:
+        else:  # Proponent mode
             orig_indices = [int(filtered_db.loc[i, 'index']) for i in I[0]]
 
         # 3) Stage 1: SBERT topic filter (skip for Opponent)
