@@ -175,7 +175,8 @@ if st.button("Respond"):
                     'idx': orig_idx,
                     'argument': arg,
                     'relation': REL_LABELS[lid],
-                    'score': 0.0
+                    'score': 0.0,
+                    'prob': float(probs[pos][lid])
                 })
         elif mode == "Proponent":
             # Use top-k from FAISS
@@ -187,7 +188,8 @@ if st.button("Respond"):
                     'idx': orig_idx,
                     'argument': arg_texts[db_idx],
                     'relation': REL_LABELS[lid],
-                    'score': float(D[0][pos])
+                    'score': float(D[0][pos]),
+                    'prob': float(probs[pos][lid])
                 })
         else:  # Debating Coach
             # Use all arguments, no scores
@@ -226,7 +228,7 @@ if st.button("Respond"):
                 top3 = df.head(3).to_dict('records')
                 msgs = []
                 for rec in top3:
-                    prob = max(probs[0][int(rec['relation'] == 'attack')], probs[0][int(rec['relation'] == 'support')])
+                    prob = rec.get('prob', 0.0)
                     msgs.append(f"{rec['argument']} (Confidence: {prob:.2f})")
                     st.session_state.used.add(rec['idx'])
                 st.session_state.history.append({"role": "assistant", "content": msgs})
