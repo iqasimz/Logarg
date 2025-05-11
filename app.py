@@ -242,8 +242,10 @@ if st.button("Respond"):
         recs = []
         if mode == "Opponent":
             for pos, (arg, orig_idx) in enumerate(zip(batch_args, orig_indices)):
-                lid = int(np.argmax(probs[pos]))
+                row_probs = probs[pos]
+                lid = int(np.argmax(row_probs))
                 rel = REL_LABELS[lid]
+                # Flip support/attack if negated
                 if neg_flag and rel in ("support","attack"):
                     rel = "attack" if rel=="support" else "support"
                 recs.append({
@@ -251,7 +253,8 @@ if st.button("Respond"):
                     'argument': arg,
                     'relation': rel,
                     'score': 0.0,
-                    'prob': float(probs[pos][lid])
+                    'prob': float(row_probs[lid]),
+                    'attack_prob': float(row_probs[0])  # track probability for attack label
                 })
         elif mode == "Proponent":
             for pos, (arg, orig_idx) in enumerate(zip(batch_args, orig_indices)):
@@ -299,10 +302,16 @@ if st.button("Respond"):
 
         # 8) Display
         if df.empty:
-            st.session_state.history.append({
-                "role": "assistant",
-                "content": "I’m sorry, I couldn’t find any relevant arguments."
-            })
+            if mode == "Opponent" and recs:
+                # Fallback: pick the argument with highest predicted attack probability
+                best = max(recs, key=lambda r: r.get('attack_prob', 0.0))
+                msg = f"{best['argument']} (Attack confidence: {best['attack_prob']:.2f})"
+                st.session_state.history.append({"role": "assistant", "content": [msg]})
+            else:
+                st.session_state.history.append({
+                    "role": "assistant",
+                    "content": "I’m sorry, I couldn’t find any relevant arguments."
+                })
         else:
             if mode in ['Opponent', 'Proponent']:
                 top1 = df.head(1).to_dict('records')
