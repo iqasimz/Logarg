@@ -47,7 +47,7 @@ def load_relation_model(repo):
     mod.eval()
     return tok, mod
 
-repo_path = "models/protagger" if stance == "Pro" else "models/contagger"
+repo_path = "iqasimz/protagger" if stance == "Pro" else "iqasimz/contagger"
 rel_tok, rel_mod = load_relation_model(repo_path)
 # label order: 0=attack, 1=support, 2=none
 REL_LABELS = ["attack", "support", "none"]
