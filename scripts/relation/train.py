@@ -18,12 +18,12 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-DATA_CSV       = "data/relationlabels.csv"
-MODEL_DIR      = "models/relationtagger"
-PRETRAINED     = MODEL_DIR  # load from your existing checkpoint
+DATA_CSV       = "data/relationlabelscon.csv"
+MODEL_DIR      = "models/contagger"
+PRETRAINED     = "bert-base-uncased"  # pretrained backbone
 BATCH_SIZE     = 16
 LR             = 3e-5
-EPOCHS         = 7
+EPOCHS         = 10
 WARMUP_FRAC    = 0.1
 MAX_LEN        = 128
 DEV_SPLIT      = 0.1
@@ -73,7 +73,7 @@ def compute_macro_f1(model, loader, device):
 # ── Main ────────────────────────────────────────────────────────────────────────
 def main():
     os.makedirs(MODEL_DIR, exist_ok=True)
-    print(f"Loading data from {DATA_CSV} and checkpoint {PRETRAINED}")
+    print(f"Loading data from {DATA_CSV} and backbone {PRETRAINED}")
     df = pd.read_csv(DATA_CSV)
     # Drop any rows with missing sentence or label values
     df.dropna(subset=["sentence1", "sentence2", "label"], inplace=True)
@@ -97,7 +97,7 @@ def main():
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
     dev_loader   = DataLoader(dev_ds,   batch_size=BATCH_SIZE)
 
-    # Load existing model checkpoint
+    # Load pretrained backbone model
     model = AutoModelForSequenceClassification.from_pretrained(
         PRETRAINED, num_labels=3
     )

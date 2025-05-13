@@ -9,11 +9,11 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-TEST_CSV   = "data/relationlabels.csv"      # or your hold‐out test file
-MODEL_DIR  = "models/relationtagger"
+TEST_CSV   = "data/relationlabels4.csv"      # or your hold‐out test file
+MODEL_DIR  = "models/protagger"
 BATCH_SIZE = 16
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -84,6 +84,16 @@ def main():
         lbl = ID2LABEL[idx]
         print(f"{lbl:7s}  P:{prec[idx]:.4f}  R:{rec[idx]:.4f}  F1:{f1[idx]:.4f}")
     print(f"\nMacro F1: {f1_macro:.4f}")
+
+    # Confusion Matrix
+    cm = confusion_matrix(all_labels, all_preds, labels=[0,1,2])
+    cm_df = pd.DataFrame(
+        cm,
+        index=[ID2LABEL[i] for i in [0,1,2]],
+        columns=[ID2LABEL[i] for i in [0,1,2]]
+    )
+    print("\nConfusion Matrix:")
+    print(cm_df)
 
 if __name__ == "__main__":
     main()
