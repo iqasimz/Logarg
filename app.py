@@ -15,7 +15,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 st.set_page_config(layout="centered")
 
 # ── Load Databank ───────────────────────────────────────────────────────────────
-def load_databank(path="data/databank2.jsonl"):
+def load_databank(path="databank.jsonl"):
     if not os.path.exists(path):
         return pd.DataFrame(columns=["argument_number", "topic", "stance", "argument"])
     records = []
@@ -47,7 +47,7 @@ def load_relation_model(repo):
     mod.eval()
     return tok, mod
 
-repo_path = "iqasimz/protagger" if stance == "Pro" else "iqasimz/contagger"
+repo_path = "iqasimz/protagger" if stance == "Pro" else "iqaimz/contagger"
 rel_tok, rel_mod = load_relation_model(repo_path)
 # label order: 0=attack, 1=support, 2=none
 REL_LABELS = ["attack", "support", "none"]

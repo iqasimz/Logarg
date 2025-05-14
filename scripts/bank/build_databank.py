@@ -5,8 +5,8 @@ import pandas as pd
 
 # ── Configuration ───────────────────────────────────────────────────────────────
 INPUT_CSV    = "data/rawbank.csv"    # raw file: each row [argument; stance]
-OUTPUT_JSONL = "data/databank2.jsonl" # structured output in JSONL
-TOPIC        = "nuclear energy"      # fixed topic tag
+OUTPUT_JSONL = "data/databank4.jsonl" # structured output in JSONL
+TOPIC        = "Television"      # fixed topic tag
 # ── End Configuration ───────────────────────────────────────────────────────────
 
 def main():
