@@ -35,7 +35,7 @@ db = load_databank()
 # ── Sidebar: Topic, Stance & Mode ──────────────────────────────────────────────
 topics = sorted(db['topic'].unique())
 selected_topic = st.sidebar.selectbox("Select debate topic:", topics)
-stance = st.sidebar.radio("Your stance on the topic:", ["Pro", "Again"])
+stance = st.sidebar.radio("Your stance on the topic:", ["Pro", "Against"])
 mode = st.sidebar.selectbox("Mode", ["Proponent", "Opponent", "Debating Coach"])
 filtered_db = db[db['topic'] == selected_topic].reset_index(drop=False)
 
@@ -107,7 +107,7 @@ def render_chat():
                     unsafe_allow_html=True
                 )
 
-st.title("Logarg Debate Assistant")
+st.title("Logarg")
 render_chat()
 st.markdown("---")
 
