@@ -18,8 +18,8 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-DATA_CSV       = "data/relationlabelscon.csv"
-MODEL_DIR      = "models/contagger"
+DATA_CSV       = "data/relationlabels4.csv"
+MODEL_DIR      = "models/tagger"
 PRETRAINED     = "bert-base-uncased"  # pretrained backbone
 BATCH_SIZE     = 16
 LR             = 3e-5
