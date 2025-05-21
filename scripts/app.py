@@ -33,11 +33,8 @@ def load_databank(path="databank.jsonl"):
 db = load_databank()
 
 # ── Sidebar: Topic, Stance & Mode ──────────────────────────────────────────────
-topics = sorted(db['topic'].unique())
-selected_topic = st.sidebar.selectbox("Select debate topic:", topics)
-stance = st.sidebar.radio("Your stance on the topic:", ["Pro", "Against"])
 mode = st.sidebar.selectbox("Mode", ["Proponent", "Opponent", "Debating Coach"])
-filtered_db = db[db['topic'] == selected_topic].reset_index(drop=False)
+filtered_db = db.reset_index(drop=False)
 
 # ── Load Relation Model & Tokenizer ────────────────────────────────────────────
 @st.cache_resource
@@ -47,9 +44,6 @@ def load_relation_model(repo):
     mod.eval()
     return tok, mod
 
-repo_path = "iqasimz/protagger" if stance == "Pro" else "iqaimz/contagger"
-rel_tok, rel_mod = load_relation_model(repo_path)
-# label order: 0=attack, 1=support, 2=none
 REL_LABELS = ["attack", "support", "none"]
 
 # ── Templates ─────────────────────────────────────────────────────────────────
@@ -124,6 +118,15 @@ if st.button("Respond"):
     if not user_input.strip():
         st.error("Please enter a statement.")
     else:
+        from transformers import pipeline
+        sentiment_analyzer = pipeline("sentiment-analysis")
+
+        sentiment = sentiment_analyzer(user_input)[0]
+        label = sentiment['label']
+        # Assign the model based on sentiment
+        repo_path = "iqasimz/contagger" if label == "NEGATIVE" else "iqasimz/protagger"
+        rel_tok, rel_mod = load_relation_model(repo_path)
+
         st.session_state.history.append({"role": "user", "text": user_input})
         if st.session_state.get("last_input") != user_input:
             st.session_state.used_opp.clear()
