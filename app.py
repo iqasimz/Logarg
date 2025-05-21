@@ -8,7 +8,14 @@ import pandas as pd
 import torch
 import numpy as np
 import random
-import time
+from sentence_transformers import SentenceTransformer
+import torch.nn.functional as F
+
+@st.cache_resource
+def load_sentiment_analyzer():
+    from transformers import pipeline
+    return pipeline("sentiment-analysis")
+
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 # ── Page Config ────────────────────────────────────────────────────────────────
@@ -34,7 +41,6 @@ db = load_databank()
 
 # ── Sidebar: Topic, Stance & Mode ──────────────────────────────────────────────
 mode = st.sidebar.selectbox("Mode", ["Proponent", "Opponent", "Debating Coach"])
-filtered_db = db.reset_index(drop=False)
 
 # ── Load Relation Model & Tokenizer ────────────────────────────────────────────
 @st.cache_resource
@@ -43,6 +49,18 @@ def load_relation_model(repo):
     mod = AutoModelForSequenceClassification.from_pretrained(repo)
     mod.eval()
     return tok, mod
+
+@st.cache_resource
+def load_similarity_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
+
+@st.cache_resource
+def load_argument_embeddings():
+    # Precompute embeddings for all stored arguments once
+    base_df = db.reset_index(drop=False)
+    sim_model = load_similarity_model()
+    emb_args = sim_model.encode(base_df["argument"].tolist(), convert_to_tensor=True)
+    return base_df, emb_args
 
 REL_LABELS = ["attack", "support", "none"]
 
@@ -118,13 +136,29 @@ if st.button("Respond"):
     if not user_input.strip():
         st.error("Please enter a statement.")
     else:
-        from transformers import pipeline
-        sentiment_analyzer = pipeline("sentiment-analysis")
+        # Similarity filtering (use cached embeddings)
+        base_df, emb_args = load_argument_embeddings()
+        sim_model = load_similarity_model()
+        emb_input = sim_model.encode(user_input, convert_to_tensor=True)
+        cos_scores = F.cosine_similarity(emb_input, emb_args)
+        threshold = 0.35  # adjust as needed
+        mask = cos_scores >= threshold
+        filtered_df = base_df[mask.cpu().numpy()]
+        if filtered_df.empty:
+            st.session_state.history.append({
+                "role": "assistant",
+                "content": "I’m sorry, I couldn’t find any arguments similar enough to your input."
+            })
+            st.session_state.clear_input = True
+            st.experimental_rerun()
+
+        # Cached sentiment analyzer
+        sentiment_analyzer = load_sentiment_analyzer()
 
         sentiment = sentiment_analyzer(user_input)[0]
         label = sentiment['label']
         # Assign the model based on sentiment
-        repo_path = "iqasimz/contagger" if label == "NEGATIVE" else "iqasimz/protagger"
+        repo_path = "models/contagger" if label == "NEGATIVE" else "models/protagger"
         rel_tok, rel_mod = load_relation_model(repo_path)
 
         st.session_state.history.append({"role": "user", "text": user_input})
@@ -134,8 +168,8 @@ if st.button("Respond"):
             st.session_state.coach_used.clear()
             st.session_state.last_input = user_input
 
-        arg_texts    = filtered_db["argument"].tolist()
-        orig_indices = filtered_db["index"].tolist()
+        arg_texts    = filtered_df["argument"].tolist()
+        orig_indices = filtered_df["index"].tolist()
 
         enc = rel_tok([user_input] * len(arg_texts),
                       arg_texts,
