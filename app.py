@@ -124,7 +124,7 @@ if st.button("Respond"):
         sentiment = sentiment_analyzer(user_input)[0]
         label = sentiment['label']
         # Assign the model based on sentiment
-        repo_path = "models/contagger" if label == "NEGATIVE" else "models/protagger"
+        repo_path = "iqasimz/contagger" if label == "NEGATIVE" else "iqasimz/protagger"
         rel_tok, rel_mod = load_relation_model(repo_path)
 
         st.session_state.history.append({"role": "user", "text": user_input})
